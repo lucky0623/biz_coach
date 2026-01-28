@@ -1,0 +1,1105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <!-- iPad 最佳化 viewport 設定 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Lightning Coach Lite</title>
+  
+  <!-- iOS/iPadOS PWA 設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lightning Coach" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b0b0e" />
+  <meta name="format-detection" content="telephone=no" />
+  
+  <!-- iOS 觸控圖標 -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%230b0b0e' width='180' height='180' rx='40'/><text x='90' y='125' font-size='100' text-anchor='middle'>⚡</text></svg>" />
+  
+  <!-- PWA Manifest (內嵌) -->
+  <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Lightning%20Coach%22%2C%22short_name%22%3A%22Coach%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230b0b0e%22%2C%22theme_color%22%3A%22%230b0b0e%22%7D" />
+  
+  <style>
+    :root{
+      --bg:#0b0b0e;
+      --card:#14141b;
+      --muted:#a9a9b5;
+      --text:#f3f3f6;
+      --line:#2a2a34;
+      --ok:#3ddc97;
+      --warn:#ffd166;
+      --bad:#ff5c7a;
+      --accent:#6ea8fe;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --r:18px;
+      --tap:68px;
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, "Segoe UI", Roboto, "Noto Sans", "PingFang TC", "Heiti TC", sans-serif;
+      
+      /* iOS Safe Area Insets */
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }
+    
+    *{
+      box-sizing:border-box;
+      /* 防止 iOS 長按選取 */
+      -webkit-touch-callout: none;
+    }
+    
+    html{
+      /* 防止 iOS 彈性滾動溢出 */
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    body{
+      margin:0;
+      font-family:var(--font);
+      background: radial-gradient(1200px 800px at 10% 0%, rgba(110,168,254,.14), transparent 60%),
+                  radial-gradient(900px 600px at 90% 10%, rgba(61,220,151,.10), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+      /* iOS 滾動最佳化 */
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      /* 防止下拉刷新 */
+      overscroll-behavior-y: none;
+      /* 防止文字選取 */
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    /* 允許輸入框選取文字 */
+    textarea, input {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+    
+    .top{
+      position:sticky; 
+      top:0; 
+      z-index:20;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      background: rgba(11,11,14,.78);
+      border-bottom:1px solid rgba(42,42,52,.85);
+      /* Safe Area 頂部邊距 */
+      padding-top: var(--safe-top);
+    }
+    
+    .wrap{
+      max-width:920px;
+      margin:0 auto;
+      padding: 14px;
+      padding-left: max(14px, var(--safe-left));
+      padding-right: max(14px, var(--safe-right));
+      padding-bottom: 18px;
+    }
+    
+    .wrap.main{
+      /* 底部 Safe Area */
+      padding-bottom: calc(18px + var(--safe-bottom));
+    }
+    
+    .bar{display:flex;align-items:center;gap:10px}
+    h1{font-size:18px;margin:0;letter-spacing:.2px}
+    .sub{font-size:12px;color:var(--muted);line-height:1.35;margin-top:2px}
+    .spacer{flex:1}
+
+    .pill{
+      display:flex;align-items:center;gap:8px;
+      border:1px solid rgba(42,42,52,.95);
+      background: rgba(20,20,27,.65);
+      padding:8px 10px;border-radius:999px;
+      font-size:12px;color:var(--muted);
+    }
+    .dot{width:8px;height:8px;border-radius:50%}
+    .dot.ok{background:var(--ok)}
+    .dot.warn{background:var(--warn)}
+    .dot.bad{background:var(--bad)}
+
+    .icon{
+      /* iPad 大觸控目標 - 至少 44pt */
+      width:56px;
+      height:56px;
+      border-radius:16px;
+      border:1px solid rgba(42,42,52,.95);
+      background: rgba(20,20,27,.70);
+      color:var(--text);
+      display:flex;align-items:center;justify-content:center;
+      font-size:22px;
+      cursor:pointer;
+      -webkit-user-select:none;
+      user-select:none;
+      /* 防止雙擊縮放 */
+      touch-action: manipulation;
+      /* iOS 觸控回饋 */
+      -webkit-tap-highlight-color: rgba(110,168,254,0.2);
+      transition: transform 0.1s ease, background 0.15s ease;
+    }
+    .icon:active{
+      transform: scale(0.95);
+      background: rgba(30,30,40,.90);
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
+      border:1px solid rgba(42,42,52,.92);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+      margin-top:14px;
+    }
+
+    textarea{
+      width:100%;
+      min-height:140px;
+      resize:none; /* iPad 上禁用拖動調整大小 */
+      border-radius:16px;
+      padding:16px;
+      background: rgba(20,20,27,.78);
+      border:1px solid rgba(42,42,52,.95);
+      color:var(--text);
+      /* 較大字體防止 iOS 自動縮放 */
+      font-size:18px;
+      line-height:1.4;
+      outline:none;
+      /* iOS 輸入框樣式修正 */
+      -webkit-appearance: none;
+      appearance: none;
+      /* 防止鍵盤彈出時頁面縮放 */
+      transform: translateZ(0);
+    }
+    textarea:focus{
+      border-color: rgba(110,168,254,.8); 
+      box-shadow: 0 0 0 4px rgba(110,168,254,.15);
+    }
+    textarea::placeholder{
+      color: var(--muted);
+      opacity: 0.7;
+    }
+
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+    .btn{
+      /* iPad 大按鈕 - 符合 Apple HIG 44pt 最小觸控目標 */
+      height:var(--tap);
+      min-height: 52px;
+      border-radius:18px;
+      border:1px solid rgba(42,42,52,.95);
+      background: rgba(20,20,27,.78);
+      color:var(--text);
+      padding:0 20px;
+      font-size:18px;
+      font-weight:700;
+      cursor:pointer;
+      -webkit-user-select:none;
+      user-select:none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: rgba(110,168,254,0.2);
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      flex:1;
+      min-width:140px;
+      /* iOS 按鈕樣式修正 */
+      -webkit-appearance: none;
+      appearance: none;
+      /* 流暢過渡動畫 */
+      transition: transform 0.1s ease, opacity 0.15s ease, background 0.15s ease;
+    }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(110,168,254,.28), rgba(110,168,254,.14)); 
+      border-color: rgba(110,168,254,.75);
+    }
+    .btn.secondary{
+      background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(255,92,122,.25), rgba(255,92,122,.10)); 
+      border-color: rgba(255,92,122,.75);
+    }
+    .btn:active{
+      transform: scale(0.97);
+      opacity: 0.9;
+    }
+    .btn:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      transform:none;
+    }
+
+    .mini{
+      height:56px;
+      min-height:56px;
+      border-radius:16px;
+      font-size:15px;
+      font-weight:600;
+      padding:0 16px;
+      flex:0 0 auto;
+      min-width:auto;
+    }
+
+    .chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .chip{
+      /* 較大的 chip 觸控目標 */
+      padding:14px 18px;
+      border-radius:999px;
+      border:1px solid rgba(42,42,52,.95);
+      background: rgba(20,20,27,.62);
+      color:var(--text);
+      font-size:15px;
+      cursor:pointer;
+      -webkit-user-select:none;
+      user-select:none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: rgba(61,220,151,0.2);
+      transition: transform 0.1s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .chip:active{
+      transform: scale(0.96);
+    }
+    .chip.on{
+      border-color: rgba(61,220,151,.85); 
+      box-shadow: 0 0 0 3px rgba(61,220,151,.14) inset;
+    }
+
+    .tabs{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+    .tab{
+      flex:1;
+      min-width:100px;
+      height:60px;
+      border-radius:16px;
+      border:1px solid rgba(42,42,52,.95);
+      background: rgba(20,20,27,.60);
+      color:var(--muted);
+      font-size:15px;
+      font-weight:700;
+      cursor:pointer;
+      -webkit-user-select:none;
+      user-select:none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: rgba(110,168,254,0.2);
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: transform 0.1s ease, color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+    .tab:active{
+      transform: scale(0.97);
+    }
+    .tab.on{
+      color:var(--text); 
+      border-color: rgba(110,168,254,.65); 
+      background: rgba(110,168,254,.10);
+    }
+
+    .out{
+      margin-top:12px;
+      border-radius:18px;
+      border:1px solid rgba(42,42,52,.95);
+      background: rgba(20,20,27,.58);
+      padding:16px;
+      /* 長內容可滾動 */
+      max-height: 280px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .out pre{
+      margin:0;
+      white-space:pre-wrap;
+      word-break:break-word;
+      font-size:20px;
+      line-height:1.4;
+      min-height:100px;
+      font-family: var(--font);
+      /* 允許選取輸出文字 */
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    details{
+      margin-top:12px;
+      border-radius:18px;
+      border:1px solid rgba(42,42,52,.95);
+      background: rgba(20,20,27,.55);
+      padding:14px 16px;
+    }
+    summary{
+      cursor:pointer; 
+      font-weight:700; 
+      color:var(--muted); 
+      font-size:15px;
+      /* 較大的觸控目標 */
+      padding: 4px 0;
+      touch-action: manipulation;
+    }
+    details .hint{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
+    }
+
+    .modalOverlay{
+      position:fixed; 
+      inset:0;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display:none;
+      z-index:40;
+    }
+    .modal{
+      position:fixed;
+      left:50%; 
+      top:50%; 
+      transform: translate(-50%,-50%);
+      width:min(720px, calc(100vw - 32px));
+      max-height: calc(100vh - 80px - var(--safe-top) - var(--safe-bottom));
+      background: rgba(20,20,27,.96);
+      border:1px solid rgba(42,42,52,.95);
+      border-radius:22px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.55);
+      padding:16px;
+      display:none;
+      z-index:41;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .modal h2{margin:0 0 12px 0;font-size:18px}
+    .grid2{display:grid;grid-template-columns: 1fr 1fr;gap:12px}
+    @media (max-width:720px){ .grid2{grid-template-columns:1fr} }
+    
+    .field label{
+      display:block;
+      font-size:13px;
+      color:var(--muted);
+      margin:10px 0 8px;
+    }
+    input[type="text"], input[type="password"], select{
+      width:100%;
+      height:56px;
+      border-radius:16px;
+      padding:0 14px;
+      border:1px solid rgba(42,42,52,.95);
+      background: rgba(11,11,14,.65);
+      color:var(--text);
+      /* 較大字體防止 iOS 自動縮放 */
+      font-size:16px;
+      outline:none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    input:focus, select:focus{
+      border-color: rgba(110,168,254,.8); 
+      box-shadow: 0 0 0 4px rgba(110,168,254,.15);
+    }
+    
+    /* iOS select 下拉箭頭 */
+    select{
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a9a9b5' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 40px;
+    }
+
+    .toggle{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-top:12px;
+      color:var(--muted);
+      font-size:14px;
+    }
+    .toggle input[type="checkbox"]{
+      width:52px;
+      height:32px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(42,42,52,.8);
+      border-radius:16px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .toggle input[type="checkbox"]::before{
+      content: '';
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--text);
+      top: 3px;
+      left: 3px;
+      transition: transform 0.2s ease;
+    }
+    .toggle input[type="checkbox"]:checked{
+      background: var(--ok);
+    }
+    .toggle input[type="checkbox"]:checked::before{
+      transform: translateX(20px);
+    }
+
+    .foot{
+      margin-top:14px;
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+    }
+
+    .smallText{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.5;
+    }
+    
+    /* iPad 橫向特殊最佳化 */
+    @media (min-width: 768px) and (orientation: landscape) {
+      .wrap{
+        max-width: 1000px;
+        padding: 16px 24px;
+      }
+      .card{
+        padding: 18px;
+      }
+      textarea{
+        min-height: 120px;
+      }
+      .out{
+        max-height: 200px;
+      }
+      .tabs{
+        gap: 12px;
+      }
+      .tab{
+        height: 56px;
+        font-size: 14px;
+      }
+    }
+    
+    /* iPad Pro 12.9" 大螢幕最佳化 */
+    @media (min-width: 1024px) {
+      :root{
+        --tap: 72px;
+      }
+      h1{
+        font-size: 20px;
+      }
+      .out pre{
+        font-size: 22px;
+      }
+    }
+    
+    /* 深色模式強制（iPad 已是深色主題） */
+    @media (prefers-color-scheme: dark) {
+      /* 已經是深色主題，無需變更 */
+    }
+    
+    /* 減少動畫（無障礙設定） */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+    
+    /* 鍵盤彈出時的處理 */
+    @supports (-webkit-touch-callout: none) {
+      /* iOS Safari 特有修正 */
+      body.keyboard-open .wrap.main{
+        padding-bottom: 0;
+      }
+    }
+    
+    /* 觸控按壓視覺回饋 */
+    @media (hover: none) and (pointer: coarse) {
+      .btn:hover,
+      .chip:hover,
+      .tab:hover,
+      .icon:hover {
+        /* 移除 hover 狀態，僅保留 active */
+        background: inherit;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="wrap">
+      <div class="bar">
+        <div>
+          <h1>⚡ Lightning Coach Lite</h1>
+          <div class="sub">Big buttons · Big text · Instant draft → live upgrade</div>
+        </div>
+        <div class="spacer"></div>
+        <div class="pill" id="statusPill"><span class="dot warn" id="dot"></span><span id="status">Ready</span></div>
+        <div class="icon" id="gear" title="Settings" role="button" aria-label="Settings">⚙️</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap main">
+    <div class="card">
+      <textarea 
+        id="q" 
+        placeholder="Type keywords fast. Example: "raise prices during inflation? risks? communication?""
+        enterkeyhint="send"
+        autocomplete="off"
+        autocorrect="on"
+        autocapitalize="sentences"
+        spellcheck="true"
+      ></textarea>
+
+      <div class="chips" id="chips">
+        <div class="chip" data-chip="Use a concrete example." role="button" tabindex="0">📌 Example</div>
+        <div class="chip" data-chip="Mention a trade-off (pros/cons)." role="button" tabindex="0">⚖️ Trade-off</div>
+        <div class="chip" data-chip="Add a risk + mitigation." role="button" tabindex="0">🛡️ Risk/Mitigation</div>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <button class="btn secondary" id="quick" type="button">⚡ Quick</button>
+        <button class="btn primary" id="polish" type="button">✨ Polished</button>
+        <button class="btn danger" id="stop" disabled style="flex:0 0 auto; min-width:140px" type="button">⛔ Stop</button>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <button class="btn mini" id="paste" type="button">📥 Paste</button>
+        <button class="btn mini" id="example" type="button">🧪 Example</button>
+        <button class="btn mini" id="copy" type="button">📋 Copy</button>
+        <button class="btn mini" id="speak" type="button">🔊 Speak</button>
+      </div>
+
+      <div class="tabs" style="margin-top:14px" role="tablist">
+        <button class="tab on" data-tab="safe" role="tab" aria-selected="true" type="button">✅ SAFE</button>
+        <button class="tab" data-tab="strong" role="tab" aria-selected="false" type="button">🔥 STRONG</button>
+        <button class="tab" data-tab="question" role="tab" aria-selected="false" type="button">❓ QUESTION</button>
+      </div>
+
+      <div class="out" role="tabpanel">
+        <pre id="out">—</pre>
+      </div>
+
+      <details>
+        <summary>📝 Notes (optional)</summary>
+        <div style="margin-top:10px">
+          <pre id="notes" style="white-space:pre-wrap; word-break:break-word; font-size:15px; color:var(--muted); margin:0; -webkit-user-select:text; user-select:text;">—</pre>
+        </div>
+        <div class="hint">Notes are for your own study. Keep it ethical: this app helps you express your thinking, not replace it.</div>
+      </details>
+
+      <div class="smallText" style="margin-top:12px">
+        Shortcuts: <b>Enter</b> Quick · <b>⌘+Enter</b> Polished · <b>Esc</b> Stop
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modalOverlay" id="overlay"></div>
+  <div class="modal" id="modal" role="dialog" aria-labelledby="modalTitle">
+    <h2 id="modalTitle">Settings</h2>
+    <div class="grid2">
+      <div class="field">
+        <label for="provider">Provider</label>
+        <select id="provider">
+          <option value="openai">OpenAI (Responses API)</option>
+          <option value="template">Template-only (instant)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="model">Model (for Polished)</label>
+        <select id="model">
+          <option value="gpt-5.2">gpt-5.2 (最強，推理)</option>
+          <option value="gpt-5.2-chat-latest">gpt-5.2-chat-latest (快速)</option>
+          <option value="gpt-4o">gpt-4o (推薦，穩定)</option>
+          <option value="gpt-4o-mini">gpt-4o-mini (便宜快速)</option>
+          <option value="gpt-4.1">gpt-4.1</option>
+          <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="key">OpenAI API Key</label>
+      <input id="key" type="password" placeholder="sk-..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <div class="toggle">
+        <input type="checkbox" id="remember" />
+        <label for="remember">Remember on this device</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="endpoint">Endpoint / Proxy URL</label>
+      <input id="endpoint" type="text" value="https://api.openai.com/v1/chat/completions" autocomplete="off" autocorrect="off" autocapitalize="off" />
+      <div class="smallText" style="margin-top:8px">Default: OpenAI Chat Completions API. Change if using a proxy.</div>
+    </div>
+
+    <div class="foot">
+      <button class="btn mini primary" id="close" type="button">Done</button>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- iOS/iPad 專用處理 ----------
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  
+  // 防止 iOS Safari 雙擊縮放
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+      e.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, { passive: false });
+  
+  // 防止 iOS 彈性滾動溢出
+  document.body.addEventListener('touchmove', (e) => {
+    if (e.target.closest('textarea, .out, .modal')) return;
+    if (document.body.scrollHeight <= window.innerHeight) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  
+  // 鍵盤彈出處理
+  if (isIOS) {
+    const textarea = $('q');
+    textarea.addEventListener('focus', () => {
+      document.body.classList.add('keyboard-open');
+      // 延遲滾動到輸入框
+      setTimeout(() => {
+        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    });
+    textarea.addEventListener('blur', () => {
+      document.body.classList.remove('keyboard-open');
+    });
+  }
+  
+  // 觸覺回饋（如果支援）
+  function haptic(style = 'light') {
+    if (navigator.vibrate) {
+      const patterns = { light: 10, medium: 20, heavy: 30 };
+      navigator.vibrate(patterns[style] || 10);
+    }
+  }
+
+  // ---------- storage ----------
+  const LS = {
+    get(k, fallback=null){
+      try{ const v = localStorage.getItem(k); return v===null? fallback : JSON.parse(v); }catch(e){ return fallback; }
+    },
+    set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+    del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+  };
+  const SS = {
+    get(k, fallback=null){
+      try{ const v = sessionStorage.getItem(k); return v===null? fallback : JSON.parse(v); }catch(e){ return fallback; }
+    },
+    set(k, v){ try{ sessionStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  };
+
+  // ---------- UI state ----------
+  let activeTab = "safe";
+  let aborter = null;
+  let streaming = false;
+  let accText = "";
+  let blocks = { safe:"—", strong:"—", question:"—", notes:"—" };
+
+  function setStatus(kind, text){
+    $("dot").className = "dot " + (kind || "warn");
+    $("status").textContent = text || "";
+  }
+
+  function getChips(){
+    return Array.from(document.querySelectorAll(".chip.on")).map(el => el.dataset.chip);
+  }
+
+  function render(){
+    $("out").textContent = blocks[activeTab] || "—";
+    $("notes").textContent = blocks.notes || "—";
+  }
+
+  function templateDraft(q, chips){
+    const c = chips;
+    const wantsExample = c.some(x=>x.toLowerCase().includes("example"));
+    const wantsTrade = c.some(x=>x.toLowerCase().includes("trade-off"));
+    const wantsRisk = c.some(x=>x.toLowerCase().includes("risk"));
+
+    const safe = `One way to look at this is to state the key assumption, then give one practical implication.`;
+    const strong = `The key trade-off is what we gain now vs what we risk later; I'd prioritize based on the goal and time horizon.`;
+    const question = `What metric are we optimizing for, and what time horizon are we assuming?`;
+
+    const notes = [
+      `Q: ${q.replace(/\s+/g,' ').trim()}`,
+      wantsExample ? "Add 1 concrete example" : "Add 1 example (optional)",
+      wantsTrade ? "Call out 1 trade-off" : "Trade-off (optional)",
+      wantsRisk ? "1 risk + 1 mitigation" : "Risk/mitigation (optional)",
+    ].map(x=>"• "+x).join("\n");
+
+    return { safe, strong, question, notes };
+  }
+
+  function buildPrompt({mode, q, chips}){
+    const chipText = chips.length ? `\nConstraints:\n${chips.map(x=>"- "+x).join("\n")}` : "";
+
+    return `You are a fast classroom speaking coach. Help the student express THEIR OWN thinking ethically.
+Return exactly 4 labeled blocks (no extra text):
+SAFE: <1 sentence, <= 22 words>
+STRONG: <1 sentence, <= 22 words>
+QUESTION: <1 sentence, <= 22 words>
+NOTES: <2-5 bullets>
+Be natural for American classroom discussion. Do not invent facts.
+
+Teacher question / keywords: ${q.trim()}${chipText}`;
+  }
+
+  function extractBlock(full, label){
+    const re = new RegExp(label + ":[\\s\\S]*?(?=\\n[A-Z_]+:|$)", "i");
+    const m = full.match(re);
+    if (!m) return "";
+    return m[0].replace(new RegExp("^"+label+":","i"),"").trim();
+  }
+
+  function applyPartial(full){
+    const s = extractBlock(full, "SAFE");
+    const st = extractBlock(full, "STRONG");
+    const q = extractBlock(full, "QUESTION");
+    const n = extractBlock(full, "NOTES");
+
+    if (s) blocks.safe = s;
+    else if (full.trim()) blocks.safe = full.replace(/\s+/g,' ').trim().slice(0, 220);
+
+    if (st) blocks.strong = st;
+    if (q) blocks.question = q;
+    if (n) blocks.notes = n;
+
+    render();
+  }
+
+  async function callOpenAIStreaming({endpoint, apiKey, model, maxTokens, temperature, prompt}){
+    aborter = new AbortController();
+    streaming = true;
+
+    // 使用 Chat Completions API 格式
+    const body = {
+      model,
+      messages: [
+        { role: "system", content: "You are a fast classroom speaking coach. Help the student express THEIR OWN thinking ethically. Be concise and natural." },
+        { role: "user", content: prompt }
+      ],
+      stream: true,
+      max_tokens: maxTokens,
+      temperature
+    };
+
+    // 使用 Chat Completions 端點
+    const apiEndpoint = endpoint.includes('/responses') 
+      ? endpoint.replace('/responses', '/chat/completions')
+      : endpoint.endsWith('/chat/completions') 
+        ? endpoint 
+        : endpoint.replace(/\/?$/, '/chat/completions');
+
+    const res = await fetch(apiEndpoint, {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer " + apiKey
+      },
+      body: JSON.stringify(body),
+      signal: aborter.signal
+    });
+
+    if (!res.ok){
+      const msg = await res.text().catch(()=>"");
+      throw new Error(`HTTP ${res.status}: ${msg.slice(0,200)}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let fullText = "";
+
+    while(true){
+      const {value, done} = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, {stream:true});
+      const lines = chunk.split("\n");
+      
+      for (const line of lines){
+        if (line.startsWith("data: ") && line !== "data: [DONE]"){
+          try {
+            const json = JSON.parse(line.substring(6));
+            const delta = json.choices?.[0]?.delta?.content || "";
+            if (delta) {
+              fullText += delta;
+              accText = fullText;
+              applyPartial(fullText);
+            }
+          } catch(e) { /* skip invalid JSON */ }
+        }
+      }
+    }
+    return fullText;
+  }
+
+  function stop(){
+    if (aborter){
+      try{ aborter.abort(); }catch(e){}
+    }
+    aborter = null;
+    streaming = false;
+  }
+
+  function setBusy(b){
+    $("quick").disabled = b;
+    $("polish").disabled = b;
+    $("stop").disabled = !b;
+  }
+
+  async function run(level){
+    const q = $("q").value.trim();
+    if (!q){ setStatus("bad","Type something ✍️"); haptic('medium'); return; }
+
+    haptic('light');
+    
+    // instant draft
+    const chips = getChips();
+    const draft = templateDraft(q, chips);
+    blocks = { ...blocks, ...draft };
+    render();
+    setStatus("ok","Draft ready ✓ (upgrading…) ");
+
+    const provider = $("provider").value;
+    if (provider === "template"){
+      setStatus("ok","Template-only ✓");
+      haptic('medium');
+      return;
+    }
+
+    const apiKey = $("key").value.trim();
+    if (!apiKey){ setStatus("bad","Missing API key (open ⚙️)"); haptic('heavy'); return; }
+
+    // persist key choice
+    if ($("remember").checked) LS.set("LCL_key", apiKey);
+    else { LS.del("LCL_key"); SS.set("LCL_key_session", apiKey); }
+
+    const endpoint = $("endpoint").value.trim() || "https://api.openai.com/v1/chat/completions";
+    const polishedModel = $("model").value;
+
+    const model = (level === "quick") ? "gpt-4o-mini" : polishedModel;
+    const maxTokens = (level === "quick") ? 100 : 180;
+    const temperature = (level === "quick") ? 0.20 : 0.35;
+
+    const prompt = buildPrompt({mode:"lightning", q, chips});
+
+    setBusy(true);
+    setStatus("warn", level === "quick" ? "Quick upgrading…" : "Polished upgrading…");
+
+    try{
+      accText = "";
+      const full = await callOpenAIStreaming({endpoint, apiKey, model, maxTokens, temperature, prompt});
+
+      const s = extractBlock(full, "SAFE");
+      const st = extractBlock(full, "STRONG");
+      const qu = extractBlock(full, "QUESTION");
+      const n = extractBlock(full, "NOTES");
+      if (s) blocks.safe = s;
+      if (st) blocks.strong = st;
+      if (qu) blocks.question = qu;
+      if (n) blocks.notes = n;
+
+      render();
+      setStatus("ok", level === "quick" ? "Quick ✓" : "Polished ✓");
+      haptic('medium');
+    } catch(e){
+      stop();
+      setStatus("bad", (e && e.message) ? e.message.slice(0,80) : "Error");
+      haptic('heavy');
+    } finally {
+      streaming = false;
+      aborter = null;
+      setBusy(false);
+    }
+  }
+
+  // ---------- tabs ----------
+  document.querySelectorAll(".tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      haptic('light');
+      document.querySelectorAll(".tab").forEach(b => {
+        b.classList.remove("on");
+        b.setAttribute('aria-selected', 'false');
+      });
+      btn.classList.add("on");
+      btn.setAttribute('aria-selected', 'true');
+      activeTab = btn.dataset.tab;
+      render();
+    });
+  });
+
+  // chips
+  $("chips").addEventListener("click", (e) => {
+    const el = e.target.closest(".chip");
+    if (!el) return;
+    haptic('light');
+    el.classList.toggle("on");
+  });
+
+  // buttons
+  $("quick").addEventListener("click", () => run("quick"));
+  $("polish").addEventListener("click", () => run("polished"));
+  $("stop").addEventListener("click", () => { 
+    stop(); 
+    setBusy(false); 
+    setStatus("warn","Stopped (draft kept) ✓"); 
+    haptic('medium');
+  });
+
+  // paste
+  $("paste").addEventListener("click", async () => {
+    haptic('light');
+    try{
+      const t = await navigator.clipboard.readText();
+      if (t) $("q").value = ($("q").value + "\n" + t).trim();
+      setStatus("ok","Pasted ✓");
+    } catch(e){ 
+      setStatus("bad","Paste blocked"); 
+      haptic('medium');
+    }
+  });
+
+  // example
+  $("example").addEventListener("click", () => {
+    haptic('light');
+    const arr = [
+      "Should a company raise prices during inflation? risks? communication?",
+      "Competitor cuts price 15% — what should we do? trade-offs?",
+      "Efficiency vs resilience in supply chains — key trade-off?",
+      "Enter a new market with limited data — how decide?"
+    ];
+    $("q").value = arr[Math.floor(Math.random()*arr.length)];
+    setStatus("ok","Example loaded");
+  });
+
+  // copy current tab
+  $("copy").addEventListener("click", async () => {
+    const text = (blocks[activeTab] || "").trim();
+    if (!text || text === "—") return;
+    haptic('light');
+    try{ 
+      await navigator.clipboard.writeText(text); 
+      setStatus("ok","Copied ✓"); 
+      haptic('medium');
+    }
+    catch(e){ 
+      setStatus("bad","Copy failed"); 
+      haptic('heavy');
+    }
+  });
+
+  // speak current tab
+  $("speak").addEventListener("click", () => {
+    const text = (blocks[activeTab] || "").trim();
+    if (!text || text === "—") return;
+    haptic('light');
+    try{
+      if (!('speechSynthesis' in window)) return;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.0;
+      u.pitch = 1.0;
+      // 優先使用 iOS 的高品質語音
+      const voices = speechSynthesis.getVoices();
+      const iosVoice = voices.find(v => v.name.includes('Samantha') || v.name.includes('Daniel'));
+      if (iosVoice) u.voice = iosVoice;
+      speechSynthesis.speak(u);
+      setStatus("ok","Speaking…");
+    } catch(e){}
+  });
+
+  // keyboard
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape"){
+      if (streaming){ 
+        stop(); 
+        setBusy(false); 
+        setStatus("warn","Stopped (draft kept) ✓"); 
+        haptic('medium');
+      }
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey){
+      const active = document.activeElement;
+      if (active && active.id === "q"){
+        e.preventDefault();
+        if (e.ctrlKey || e.metaKey) run("polished");
+        else run("quick");
+      }
+    }
+  });
+
+  // settings modal
+  function openModal(){
+    haptic('light');
+    $("overlay").style.display = "block";
+    $("modal").style.display = "block";
+    // 防止背景滾動
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(){
+    haptic('light');
+    $("overlay").style.display = "none";
+    $("modal").style.display = "none";
+    document.body.style.overflow = '';
+    persist();
+  }
+
+  $("gear").addEventListener("click", openModal);
+  $("overlay").addEventListener("click", closeModal);
+  $("close").addEventListener("click", closeModal);
+
+  // persist settings
+  function persist(){
+    LS.set("LCL_settings", {
+      provider: $("provider").value,
+      model: $("model").value,
+      endpoint: $("endpoint").value.trim() || "https://api.openai.com/v1/chat/completions",
+      remember: $("remember").checked
+    });
+  }
+
+  function restore(){
+    const s = LS.get("LCL_settings", null);
+    if (s){
+      $("provider").value = s.provider || "openai";
+      $("model").value = s.model || "gpt-4o";
+      $("endpoint").value = s.endpoint || "https://api.openai.com/v1/chat/completions";
+      $("remember").checked = !!s.remember;
+    }
+    const remembered = LS.get("LCL_key", "");
+    const sessionKey = SS.get("LCL_key_session", "");
+    if (remembered){ $("key").value = remembered; $("remember").checked = true; }
+    else if (sessionKey){ $("key").value = sessionKey; }
+  }
+
+  // 載入語音（iOS 需要延遲載入）
+  if ('speechSynthesis' in window) {
+    speechSynthesis.getVoices();
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+  }
+
+  restore();
+  render();
+  setStatus("ok","Ready");
+})();
+</script>
+</body>
+</html>
