@@ -26,7 +26,7 @@
       --card:#14141b;
       --muted:#a9a9b5;
       --text:#f3f3f6;
-      --line:#2a2a34;
+      --line:#2a2a34;A
       --ok:#3ddc97;
       --warn:#ffd166;
       --bad:#ff5c7a;
@@ -547,7 +547,7 @@
     <div class="card">
       <textarea 
         id="q" 
-        placeholder="Type keywords fast. Example: "raise prices during inflation? risks? communication?""
+        placeholder='Type keywords fast. Example: "raise prices during inflation? risks? communication?"'
         enterkeyhint="send"
         autocomplete="off"
         autocorrect="on"
@@ -606,7 +606,7 @@
       <div class="field">
         <label for="provider">Provider</label>
         <select id="provider">
-          <option value="openai">OpenAI (Responses API)</option>
+          <option value="openai">OpenAI (Chat Completions)</option>
           <option value="template">Template-only (instant)</option>
         </select>
       </div>
@@ -651,12 +651,18 @@
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   
-  // 防止 iOS Safari 雙擊縮放
+  // 防止 iOS Safari 雙擊縮放（但不干擾 textarea/output/modal 的選字功能）
   let lastTouchEnd = 0;
   document.addEventListener('touchend', (e) => {
+    // 如果是在輸入區、輸出區或 modal 內，不阻擋雙擊（允許選字）
+    const target = e.target;
+    if (target.closest('textarea, input, .out, .modal, pre, [contenteditable]')) {
+      return;  // 允許正常的雙擊選字行為
+    }
+    
     const now = Date.now();
     if (now - lastTouchEnd <= 300) {
-      e.preventDefault();
+      e.preventDefault();  // 只在非文字區域阻擋雙擊縮放
     }
     lastTouchEnd = now;
   }, { passive: false });
@@ -835,27 +841,51 @@ Teacher question / keywords: ${q.trim()}${chipText}`;
     const reader = res.body.getReader();
     const decoder = new TextDecoder("utf-8");
     let fullText = "";
+    let sseBuffer = "";  // SSE 緩衝區，防止網路抖動造成漏字
 
     while(true){
       const {value, done} = await reader.read();
       if (done) break;
-      const chunk = decoder.decode(value, {stream:true});
-      const lines = chunk.split("\n");
+      
+      // 累積到緩衝區
+      sseBuffer += decoder.decode(value, {stream:true});
+      
+      // 以換行分割，保留最後一段（可能不完整）
+      const lines = sseBuffer.split("\n");
+      sseBuffer = lines.pop() || "";  // 最後一行可能不完整，留到下一輪
       
       for (const line of lines){
-        if (line.startsWith("data: ") && line !== "data: [DONE]"){
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith("data: ") && trimmedLine !== "data: [DONE]"){
           try {
-            const json = JSON.parse(line.substring(6));
+            const json = JSON.parse(trimmedLine.substring(6));
             const delta = json.choices?.[0]?.delta?.content || "";
             if (delta) {
               fullText += delta;
               accText = fullText;
               applyPartial(fullText);
             }
-          } catch(e) { /* skip invalid JSON */ }
+          } catch(e) { /* skip invalid JSON, will retry with more data */ }
         }
       }
     }
+    
+    // 處理緩衝區中剩餘的內容
+    if (sseBuffer.trim()) {
+      const trimmedLine = sseBuffer.trim();
+      if (trimmedLine.startsWith("data: ") && trimmedLine !== "data: [DONE]") {
+        try {
+          const json = JSON.parse(trimmedLine.substring(6));
+          const delta = json.choices?.[0]?.delta?.content || "";
+          if (delta) {
+            fullText += delta;
+            accText = fullText;
+            applyPartial(fullText);
+          }
+        } catch(e) { /* ignore final incomplete data */ }
+      }
+    }
+    
     return fullText;
   }
 
@@ -1034,8 +1064,11 @@ Teacher question / keywords: ${q.trim()}${chipText}`;
     } catch(e){}
   });
 
-  // keyboard
+  // keyboard（加入 IME 組字保護）
   document.addEventListener("keydown", (e) => {
+    // IME 組字中（注音/拼音等輸入法），不觸發快捷鍵
+    if (e.isComposing || e.keyCode === 229) return;
+    
     if (e.key === "Escape"){
       if (streaming){ 
         stop(); 
