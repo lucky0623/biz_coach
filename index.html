@@ -790,6 +790,9 @@ Teacher question / keywords: ${q.trim()}${chipText}`;
     streaming = true;
 
     // 使用 Chat Completions API 格式
+    // GPT-5 系列需要用 max_completion_tokens，GPT-4 系列用 max_tokens
+    const isGPT5 = model.includes('gpt-5') || model.includes('o1') || model.includes('o3') || model.includes('o4');
+    
     const body = {
       model,
       messages: [
@@ -797,9 +800,15 @@ Teacher question / keywords: ${q.trim()}${chipText}`;
         { role: "user", content: prompt }
       ],
       stream: true,
-      max_tokens: maxTokens,
       temperature
     };
+    
+    // 根據模型選擇正確的 token 參數
+    if (isGPT5) {
+      body.max_completion_tokens = maxTokens;
+    } else {
+      body.max_tokens = maxTokens;
+    }
 
     // 使用 Chat Completions 端點
     const apiEndpoint = endpoint.includes('/responses') 
